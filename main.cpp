@@ -1,75 +1,78 @@
 #include <iostream>
+#include "GitsLogger.h"
 
-#include "Logger.h"
-
-#include <thread>
 #include <vector>
 
+#include <chrono>
+#include <ctime>
+
+#include "LoggerUsage.h"
+
+using namespace std;
 using namespace gits;
 
-void expectedUsage()
-{
-//    logObj << "My log line" << 1 << "\n";
-//    logObj(LogSeverity::error) << "Achtung!!!\n";
-
-//    logger.log('c');
-//    logger.log(32);
-//    logger.log(45.44);
-//    logger.log("string");
-}
-
-void threadFunc()
-{
-    logObj().log("Hello there!");
-
-    logObj(LogSeverity::error) << "Interesting log" << 11 << gits::endl;
-}
-
-void threadFunc2()
-{
-    static int thread_num = 0;
-
-    for (int i = 0; i < 10; i++)
+namespace  {
+    void func()
     {
-        logObj() << "Hello from thread #" << ++thread_num;
-        logObj() << "Iteration #" << i+1 << gits::endl;
+        static int k = 0;
+        k++;
+        for (int i = 0; i < 10; i++)
+        {
+            gits::logObj(Logger::LogSeverity::error) << "Hello" << " from " << " thread #" << k << Logger::endl;
+            gits::logObj() << "Iteration #" << i+1  << Logger::endl;
+            this_thread::sleep_for(std::chrono::milliseconds(rand()%10));
+        }
     }
 }
 
 int main()
 {
-    std::cout << "Let's go!" << std::endl;
+    cout << "Let's go!" << endl;
 
 
-    Logger& logger = Logger::get();
-    logger.init("MyLog.txt", LogOutput::everywhere);
-    logger.open();
-    //////////////
-
-    logger.log("test log", LogSeverity::debug);
-
-    std::vector<std::thread> threads;
-    for (int i = 0; i < 10; i++)
+    using namespace gits;
+    using LogSeverity = Logger::LogSeverity;
+    try
     {
-        threads.emplace_back(std::thread(i % 2 ? threadFunc : threadFunc2));
-    }
+        Logger& logger = Logger::get();
+        logger.init("test.log");
+        logger.open();
 
 
-    threadFunc();
-
-    logger << 12345;
-
-
-    for (auto& th : threads)
-    {
-        if (th.joinable())
+        std::vector<std::thread> threads;
+        for (int i = 0; i < 10; i++)
         {
-            th.join();
+            threads.emplace_back(std::thread(func));
         }
-    }
 
-    ///////////////
-    logger.close();
+        logger.log("Achtung!!!", LogSeverity::error);
+        logger.log(42, LogSeverity::warning);
+        logger.log('c', LogSeverity::info);
+
+        logger.log(3.14, LogSeverity::debug);
+
+
+        logger << "streamed log";
+        logger << "more stream" << 123 << 'c' << Logger::endl;
+        logger(LogSeverity::error) << "Error is here" << Logger::endl;
+
+        for (auto& elem : threads)
+        {
+            elem.join();
+        }
+
+        usage();
+
+        logger.close();
+    }
+    catch (std::runtime_error& e)
+    {
+        std::cout << "Exception caught: " << e.what() << std::endl;
+    }
+    catch (...)
+    {
+        std::cout << "Unknown exceptopn caught" << std::endl;
+    }
 
     return 0;
 }
